@@ -27,7 +27,7 @@ class Customer(pygame.sprite.Sprite):
         self._wait_timer= 0.0
         self.wants      = random.choice(["bubble", "food"])
         self.satisfied  = False
-        self.done       = False          # remove from scene
+        self.done       = False          
 
         self._bubble    = None
         self._bubble_timer = 0.0
@@ -36,7 +36,6 @@ class Customer(pygame.sprite.Sprite):
         self._want_text = "🧋 Bubble Tea?" if self.wants == "bubble" else "🍔 Food please!"
         self._thought_surf = make_speech_bubble(self._want_text, 13)
 
-    # ──────────────────────────────────────────
     def update(self, dt: float):
         self._bob_phase += dt * 2
 
@@ -48,7 +47,6 @@ class Customer(pygame.sprite.Sprite):
         elif self.state == "waiting":
             self._wait_timer += dt
             if self._wait_timer >= self._patience:
-                # gave up
                 self.state = "leaving"
 
         elif self.state == "served":
@@ -64,7 +62,6 @@ class Customer(pygame.sprite.Sprite):
 
         self.rect.midbottom = (int(self.pos.x), int(self.pos.y))
 
-    # ──────────────────────────────────────────
     def _move_toward(self, target: pygame.math.Vector2, dt: float):
         diff = target - self.pos
         if diff.length() > 2:
@@ -73,7 +70,6 @@ class Customer(pygame.sprite.Sprite):
     def _close_to(self, target: pygame.math.Vector2, threshold: float) -> bool:
         return (self.pos - target).length() <= threshold
 
-    # ──────────────────────────────────────────
     def serve(self, item_type: str) -> int:
         """
         Attempt to serve customer. Returns price earned or 0 if wrong item.
@@ -86,21 +82,17 @@ class Customer(pygame.sprite.Sprite):
             return BUBBLE_TEA_PRICE if self.wants == "bubble" else random.randint(FOOD_PRICE_MIN, FOOD_PRICE_MAX)
         return 0
 
-    # ──────────────────────────────────────────
     def draw(self, surface: pygame.Surface):
-        # slight bob while waiting
         bob = int(math.sin(self._bob_phase) * 2) if self.state == "waiting" else 0
 
         draw_rect = self.rect.move(0, bob)
         surface.blit(self.image, draw_rect)
 
-        # speech / thought bubble
         if self.state in ("waiting", "served") and not self.done:
             bx = draw_rect.centerx - self._thought_surf.get_width() // 2
             by = draw_rect.top - self._thought_surf.get_height() - 4
             surface.blit(self._thought_surf, (bx, by))
 
-        # patience bar (red when low)
         if self.state == "waiting":
             bar_w = CUSTOMER_W
             prog  = 1.0 - (self._wait_timer / self._patience)

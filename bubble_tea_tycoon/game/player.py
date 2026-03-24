@@ -1,15 +1,14 @@
+'''
+The player-controlled seller character.
+Moves with WASD / arrow keys and carries items picked up from machines.
+'''
+
 import pygame
 from game.constants import *
 from game.asset_manager import make_player_sprite
 
 
 class Player(pygame.sprite.Sprite):
-    """
-    The player-controlled seller character.
-    Moves with WASD / arrow keys.
-    Carries items picked up from machines.
-    """
-
     def __init__(self, x: float, y: float):
         super().__init__()
         self._sprites = {
@@ -22,15 +21,13 @@ class Player(pygame.sprite.Sprite):
 
         self.pos        = pygame.math.Vector2(x, y)
         self.speed      = PLAYER_SPEED
-        self.inventory  = []        # list of item dicts  {"type": ..., "price": ...}
+        self.inventory  = []
         self.max_items  = 5
         self.money      = 0
 
-        # walk animation
         self._anim_timer = 0.0
         self._frame      = 0
 
-    # ──────────────────────────────────────────
     def handle_input(self) -> pygame.math.Vector2:
         keys  = pygame.key.get_pressed()
         vel   = pygame.math.Vector2(0, 0)
@@ -52,19 +49,16 @@ class Player(pygame.sprite.Sprite):
             vel = vel.normalize()
         return vel
 
-    # ──────────────────────────────────────────
     def update(self, dt: float):
         vel = self.handle_input()
         self.pos += vel * self.speed * dt
 
-        # clamp inside floor area
         half_w = PLAYER_W / 2
         self.pos.x = max(half_w, min(SCREEN_W - half_w, self.pos.x))
         self.pos.y = max(FLOOR_Y + 10, min(SCREEN_H - 10, self.pos.y))
 
         self.rect.midbottom = (int(self.pos.x), int(self.pos.y))
 
-        # animate walk
         if vel.length() > 0:
             self._anim_timer += dt
             if self._anim_timer > 0.2:
@@ -75,16 +69,13 @@ class Player(pygame.sprite.Sprite):
 
         self.image = self._sprites[self.direction]
 
-    # ──────────────────────────────────────────
     def pick_up(self, item: dict) -> bool:
-        """Returns True if item was picked up."""
         if len(self.inventory) < self.max_items:
             self.inventory.append(item)
             return True
         return False
 
     def sell_item(self) -> int:
-        """Sell the first inventory item, return price earned."""
         if self.inventory:
             item = self.inventory.pop(0)
             earned = item["price"]
@@ -95,11 +86,9 @@ class Player(pygame.sprite.Sprite):
     def earn(self, amount: int):
         self.money += amount
 
-    # ──────────────────────────────────────────
     def draw(self, surface: pygame.Surface):
         surface.blit(self.image, self.rect)
 
-        # draw held items as stack above player
         for i, item in enumerate(self.inventory):
             icon = item.get("icon")
             if icon:

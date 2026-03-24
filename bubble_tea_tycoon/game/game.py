@@ -1,3 +1,8 @@
+'''
+Central game controller.
+Owns all game objects and orchestrates update / draw.
+'''
+
 import pygame
 import random
 from game.constants import *
@@ -11,25 +16,14 @@ from game.hud      import HUD
 
 
 class Game:
-    """
-    Central game controller.
-    Owns all game objects and orchestrates update / draw.
-    """
-
     def __init__(self, screen: pygame.Surface):
         self.screen  = screen
         self.running = True
-
-        # ── background ──────────────────────────
         self._bg = make_background(SCREEN_W, SCREEN_H)
-
-        # ── game objects ────────────────────────
         floor_mid_y = FLOOR_Y + 40
 
-        # Player starts near the counter
         self.player = Player(200, floor_mid_y + 20)
 
-        # Machines (on the counter / back wall)
         self.machines: list[Machine] = [
             Machine(160,  FLOOR_Y,       "bubble"),
             Machine(260,  FLOOR_Y,       "food"),
@@ -37,14 +31,12 @@ class Game:
             Machine(500,  FLOOR_Y,       "food"),
         ]
 
-        # Droppers (cash registers on floor)
         self.droppers: list[Dropper] = [
             Dropper(700,  FLOOR_Y + 60,  reward=2),
             Dropper(900,  FLOOR_Y + 60,  reward=3),
             Dropper(1100, FLOOR_Y + 60,  reward=2),
         ]
 
-        # Customer waiting spots
         self._wait_spots = [
             (680,  FLOOR_Y + 120),
             (820,  FLOOR_Y + 100),
@@ -54,15 +46,13 @@ class Game:
         self._spot_occupied = [False] * len(self._wait_spots)
         self.customers: list[Customer] = []
 
-        self._spawn_timer    = 0.0
-        self._spawn_interval = CUSTOMER_SPAWN_INTERVAL
-        self._customer_index = 0
+        self._spawn_timer     = 0.0
+        self._spawn_interval  = CUSTOMER_SPAWN_INTERVAL
+        self._customer_index  = 0
 
-        # ── systems ──────────────────────────────
         self.weather = WeatherSystem(SCREEN_W, SCREEN_H)
         self.hud     = HUD(SCREEN_W, SCREEN_H)
 
-    # ──────────────────────────────────────────
     def handle_event(self, event: pygame.event.Event):
         if event.type == pygame.KEYDOWN:
             if event.key in (pygame.K_e, pygame.K_SPACE):
@@ -71,7 +61,6 @@ class Game:
             elif event.key == pygame.K_f:
                 self._try_sell_to_customer()
 
-    # ──────────────────────────────────────────
     def update(self, dt: float):
         self.player.update(dt)
 
@@ -80,7 +69,6 @@ class Game:
         for d in self.droppers:
             d.update(dt)
 
-        # spawn customers
         self._spawn_timer += dt
         if self._spawn_timer >= self._spawn_interval:
             self._spawn_timer = 0
@@ -90,11 +78,9 @@ class Game:
             )
             self._try_spawn_customer()
 
-        # update customers
         for c in self.customers:
             c.update(dt)
 
-        # free spots of done customers
         for c in self.customers:
             if c.done:
                 self._free_spot(c)
@@ -103,12 +89,9 @@ class Game:
         self.weather.update(dt)
         self.hud.update(dt)
 
-        # auto-interact with droppers when walking over them
         self._auto_dropper()
 
-    # ──────────────────────────────────────────
     def _try_interact_machine(self):
-        """Pick up item from nearest ready machine."""
         for m in self.machines:
             if m.get_interact_rect().colliderect(self.player.rect):
                 item = m.collect()
@@ -116,13 +99,11 @@ class Game:
                     if self.player.pick_up(item):
                         self.hud.add_notification(f"+{item['label']}!", TEAL)
                     else:
-                        # put it back
                         m.ready = True
                         self.hud.add_notification("Bag full!", RED)
                     break
 
     def _try_interact_dropper(self):
-        """Collect money from dropper."""
         for d in self.droppers:
             if d.get_interact_rect().colliderect(self.player.rect):
                 amount = d.collect()
@@ -131,7 +112,6 @@ class Game:
                     self.hud.add_notification(f"+${amount} bonus!", YELLOW)
 
     def _auto_dropper(self):
-        """Silently collect ready dropper if player stands on it."""
         for d in self.droppers:
             if d.ready and d.rect.colliderect(self.player.rect):
                 amount = d.collect()
@@ -140,7 +120,6 @@ class Game:
                     self.hud.add_notification(f"+${amount} bonus!", YELLOW)
 
     def _try_sell_to_customer(self):
-        """Sell first inventory item to nearest waiting customer."""
         if not self.player.inventory:
             self.hud.add_notification("Nothing to sell!", GRAY)
             return
@@ -161,7 +140,6 @@ class Game:
             self.hud.add_notification("No customer nearby!", GRAY)
             return
 
-        # try selling matching item first
         item_type = self.player.inventory[0]["type"]
         earned    = best_c.serve(item_type)
 
@@ -175,7 +153,6 @@ class Game:
                 f"Customer wants {'🧋' if best_c.wants == 'bubble' else '🍔'}!", ORANGE
             )
 
-    # ──────────────────────────────────────────
     def _try_spawn_customer(self):
         free_spots = [i for i, occ in enumerate(self._spot_occupied) if not occ]
         if not free_spots:
@@ -194,22 +171,17 @@ class Game:
         if idx is not None and 0 <= idx < len(self._spot_occupied):
             self._spot_occupied[idx] = False
 
-    # ──────────────────────────────────────────
     def draw(self):
-        # 1. Static background
         self.screen.blit(self._bg, (0, 0))
 
-        # 2. Weather: dark sky overlay + clouds
         self.weather.draw_sky_overlay(self.screen)
         self.weather.draw_clouds(self.screen)
 
-        # 3. Machines & droppers
         for m in self.machines:
             m.draw(self.screen)
         for d in self.droppers:
             d.draw(self.screen)
 
-        # 4. Customers (sorted by y for pseudo-depth)
         all_chars = sorted(
             self.customers + [self.player],
             key=lambda obj: obj.rect.bottom
@@ -217,8 +189,6 @@ class Game:
         for obj in all_chars:
             obj.draw(self.screen)
 
-        # 5. Rain overlay (on top of characters)
         self.weather.draw_rain(self.screen)
 
-        # 6. HUD (always on top)
         self.hud.draw(self.screen, self.player, self.weather)

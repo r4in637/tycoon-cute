@@ -8,7 +8,7 @@ def main():
     pygame.mixer.init()
 
     screen = pygame.display.set_mode((1280, 720))
-    pygame.display.set_caption("Bubble Tea Tycoon 🧋")
+    pygame.display.set_caption("Bubble Tea Tycoon")
 
     clock = pygame.time.Clock()
     game = Game(screen)
